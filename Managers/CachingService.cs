@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Redis_caching.Models;
 using StackExchange.Redis;
 
 namespace Redis_caching.Services;
@@ -40,5 +41,15 @@ public class CachingService: ICachingService
             return _cacheRedisDb.KeyDelete(key);
         }
         return false;
+    }
+    
+    public Customer GetCustomerById(int id)
+    {
+        var data = _cacheRedisDb.StringGet(id.ToString());
+        if (data.IsNullOrEmpty)
+        {
+            return default;
+        }
+        return JsonSerializer.Deserialize<Customer>(data);
     }
 }
