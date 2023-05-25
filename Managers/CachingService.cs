@@ -33,6 +33,7 @@ public class CachingService: ICachingService
         //return _cacheRedisDb.StringSet(key, serializedData, expiration - DateTimeOffset.Now);
     }
     
+    /*
     public object RemoveData(string key)
     {
         var dataExists = _cacheRedisDb.KeyExists(key);
@@ -42,14 +43,5 @@ public class CachingService: ICachingService
         }
         return false;
     }
-    
-    public Customer GetCustomerById(int id)
-    {
-        var data = _cacheRedisDb.StringGet(id.ToString());
-        if (data.IsNullOrEmpty)
-        {
-            return default;
-        }
-        return JsonSerializer.Deserialize<Customer>(data);
-    }
+    */
 }

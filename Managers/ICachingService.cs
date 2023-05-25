@@ -8,8 +8,5 @@ public interface ICachingService
     
     bool SetData<T>(string key, T data, DateTimeOffset expiration);
     
-    object RemoveData(string key);
-    
-    //get a customer by id
-    Customer GetCustomerById(int id);
+    //object RemoveData(string key);
 }

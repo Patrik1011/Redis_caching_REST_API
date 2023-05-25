@@ -83,7 +83,7 @@ public class CustomersController : ControllerBase
             _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
             _dbContext.Customers.Remove(new Customer { Id = customerId }); 
             await _dbContext.SaveChangesAsync();
-            return Ok();
+            return Ok("deleted from cache first");
         }
 
         // If not found in cache, find in database
@@ -94,15 +94,78 @@ public class CustomersController : ControllerBase
         }
 
         // Update the cache after deleting the customer
-        //if cacheData is null, then set it to an empty list
-        if(cacheData == null) cacheData = new List<Customer>();
+        //if cacheData is null, fetch data from the database
+        if (cacheData == null || !cacheData.Any())
+        {
+            cacheData = await _dbContext.Customers.ToListAsync();
+            _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
+        }
         cacheData.RemoveAll(c => c.Id == customerId);
         _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
 
         _dbContext.Customers.Remove(customer);
         await _dbContext.SaveChangesAsync();
 
-        return Ok(cacheData);
-
+        return Ok("deleted from database");
     }
+
+    
+    [HttpPut]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(int customerId, [FromBody] Customer updatedCustomer)
+    {
+        // Try to update the customer in the cache first
+        var cacheData = _cachingService.GetData<List<Customer>>("customers");
+        if (cacheData != null)
+        {
+            var cachedCustomer = cacheData.FirstOrDefault(c => c.Id == customerId);
+            if (cachedCustomer != null)
+            {
+                // Update the cached customer object
+                cachedCustomer.Name = updatedCustomer.Name;
+                cachedCustomer.PostalCode = updatedCustomer.PostalCode;
+                cachedCustomer.Address = updatedCustomer.Address;
+                cachedCustomer.Email = updatedCustomer.Email;
+                
+                _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
+            
+                // Update the customer in the database
+                var dbCustomer = await _dbContext.Customers.FindAsync(customerId);
+                if (dbCustomer != null)
+                {
+                    dbCustomer.Name = updatedCustomer.Name;
+                    dbCustomer.Address = updatedCustomer.Address;
+                    dbCustomer.PostalCode = updatedCustomer.PostalCode;
+                    dbCustomer.Email = updatedCustomer.Email;
+
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                return Ok("Updated in Cache firsly");
+            }
+        }
+
+        // If not found in cache, find in database
+        var customer = await _dbContext.Customers.FindAsync(customerId);
+        if (customer == null)
+        {
+            return NotFound();
+        }
+
+        // Update the customer in the database
+        customer.Name = updatedCustomer.Name;
+        customer.Address = updatedCustomer.Address;
+        customer.PostalCode = updatedCustomer.PostalCode;
+        customer.Email = updatedCustomer.Email;
+    
+        await _dbContext.SaveChangesAsync();
+
+        // get all customers from the database and update the cache
+        cacheData = await _dbContext.Customers.ToListAsync();
+        _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
+
+        return Ok("Updated in Database");
+    }
+    
 }
