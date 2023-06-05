@@ -92,20 +92,14 @@ public class CustomersController : ControllerBase
         {
             return NotFound();
         }
-
-        // Update the cache after deleting the customer
-        //if cacheData is null, fetch data from the database
-        if (cacheData == null || !cacheData.Any())
+        _dbContext.Customers.Remove(customer);
+        await _dbContext.SaveChangesAsync();
+        
+        if(cacheData == null || !cacheData.Any())
         {
             cacheData = await _dbContext.Customers.ToListAsync();
             _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
         }
-        cacheData.RemoveAll(c => c.Id == customerId);
-        _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
-
-        _dbContext.Customers.Remove(customer);
-        await _dbContext.SaveChangesAsync();
-
         return Ok("deleted from database");
     }
 
@@ -119,6 +113,7 @@ public class CustomersController : ControllerBase
         var cacheData = _cachingService.GetData<List<Customer>>("customers");
         if (cacheData != null)
         {
+            // customerId is the id of the customer to be updated
             var cachedCustomer = cacheData.FirstOrDefault(c => c.Id == customerId);
             if (cachedCustomer != null)
             {
@@ -130,7 +125,7 @@ public class CustomersController : ControllerBase
                 
                 _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
             
-                // Update the customer in the database
+                // Update the customer in the database after updating the cache
                 var dbCustomer = await _dbContext.Customers.FindAsync(customerId);
                 if (dbCustomer != null)
                 {
@@ -141,8 +136,9 @@ public class CustomersController : ControllerBase
 
                     await _dbContext.SaveChangesAsync();
                 }
+                else return BadRequest();
 
-                return Ok("Updated in Cache firsly");
+                return Ok("Updated in Cache first");
             }
         }
 
@@ -165,7 +161,7 @@ public class CustomersController : ControllerBase
         cacheData = await _dbContext.Customers.ToListAsync();
         _cachingService.SetData("customers", cacheData, DateTimeOffset.Now.AddSeconds(30));
 
-        return Ok("Updated in Database");
+        return Ok("Updated in Database first");
     }
     
 }
